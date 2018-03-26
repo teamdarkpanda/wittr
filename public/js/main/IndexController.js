@@ -159,6 +159,10 @@ IndexController.prototype._onSocketMessage = function(data) {
 
     var tx = db.transaction('wittrs', 'readwrite');
     var store = tx.objectStore('wittrs');
+
+    // Create a variable to index the posts by date
+    var byDateIndex = store.index('by-date');
+
     messages.forEach(function(message) {
       store.put(message);
     });
@@ -169,6 +173,14 @@ IndexController.prototype._onSocketMessage = function(data) {
     // Hint: you can use .openCursor(null, 'prev') to
     // open a cursor that goes through an index/store
     // backwards.
+    return byDateIndex.openCursor(null, 'prev').then(function(cursor) {
+      return cursor.advance(30);
+    }).then(function deletePosts(cursor) {
+        if(!cursor) return;
+        cursor.delete();
+
+        return cursor.continue().then(deletePosts);
+    });
   });
 
   this._postsView.addPosts(messages);
